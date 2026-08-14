@@ -27,3 +27,7 @@ npm run preview
 `main` または `master` ブランチへpushすると、`.github/workflows/deploy.yml`がビルドしてGitHub Pagesへ公開します。
 
 GitHubリポジトリの Settings → Pages → Build and deployment で、Sourceを「GitHub Actions」に設定してください。
+
+## 3D素材
+
+遺跡の入口・柱・宝箱・松明には、QuaterniusのModular Dungeon packを使用しています。CC0 / Public Domainです。ライセンス情報は`public/models/dungeon/LICENSE-AND-ATTRIBUTION.txt`に記載しています。
