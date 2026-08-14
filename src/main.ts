@@ -15,6 +15,7 @@ app.innerHTML = `
     <div class="brand">時空遺跡 <span>prototype 01</span></div>
     <div id="objective">遺跡のスイッチを探そう</div>
     <div id="gadget">ひみつ道具：空気砲</div>
+    <div id="enemy-status" class="hidden">守護ロボット HP：■■■</div>
     <div id="message">WASD / 矢印キーで移動　・　Eで調べる</div>
   </div>
   <div id="crosshair">＋</div>
@@ -224,6 +225,36 @@ scene.add(switchOrb)
 
 const door = box([5, 5, 0.8], [0, 2.5, -15], stone)
 let activated = false
+let enemyHp = 3
+let enemyDefeated = false
+const enemy = new THREE.Group()
+const enemyBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.65, 0.9, 6, 12), mat(0x544d73, 0.65))
+enemyBody.position.y = 1.05
+enemyBody.castShadow = true
+enemy.add(enemyBody)
+const enemyHead = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 12), mat(0x8b79a5, 0.6))
+enemyHead.position.y = 1.9
+enemyHead.castShadow = true
+enemy.add(enemyHead)
+for (const x of [-0.2, 0.2]) {
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0xff4b6e, 0.35))
+  eye.position.set(x, 2, -0.58)
+  eye.material.emissive = new THREE.Color(0xaa102d)
+  eye.material.emissiveIntensity = 3
+  enemy.add(eye)
+}
+const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.65, 8), mat(0xf0ba58, 0.5))
+antenna.position.y = 2.75
+enemy.add(antenna)
+const antennaLight = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshStandardMaterial({ color: 0xff536f, emissive: 0xff1638, emissiveIntensity: 4 }))
+antennaLight.position.y = 3.1
+enemy.add(antennaLight)
+enemy.position.set(0, 0, -4)
+enemy.visible = false
+enemy.castShadow = true
+scene.add(enemy)
+const projectiles: { mesh: THREE.Mesh; velocity: THREE.Vector3 }[] = []
+let lastShotAt = -Infinity
 const keys: Keys = {}
 addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase()
@@ -231,13 +262,15 @@ addEventListener('keydown', (e) => {
   // A small discrete nudge makes one-shot keyboard events testable and also
   // keeps keyboard navigation responsive on browsers that miss key repeats.
   const nudge = 0.2
-  if (key === 'w' || key === 'arrowup') player.position.z -= nudge
-  if (key === 's' || key === 'arrowdown') player.position.z += nudge
-  if (key === 'a' || key === 'arrowleft') player.position.x -= nudge
-  if (key === 'd' || key === 'arrowright') player.position.x += nudge
+  if (key === 'w' || key === 'arrowup') { player.position.z -= nudge; player.rotation.y = Math.PI }
+  if (key === 's' || key === 'arrowdown') { player.position.z += nudge; player.rotation.y = 0 }
+  if (key === 'a' || key === 'arrowleft') { player.position.x -= nudge; player.rotation.y = -Math.PI / 2 }
+  if (key === 'd' || key === 'arrowright') { player.position.x += nudge; player.rotation.y = Math.PI / 2 }
   if (key === 'e') interact()
+  if (key === ' ' || key === 'spacebar' || e.code === 'Space') shootAirCannon()
 })
 addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false })
+renderer.domElement.addEventListener('pointerdown', shootAirCannon)
 
 function interact() {
   if (player.position.distanceTo(switchOrb.position) < 3.2 && !activated) {
@@ -245,9 +278,22 @@ function interact() {
     switchBase.material = mat(0x4fe3bf)
     switchOrb.material = mat(0xffd45c, 0.3)
     door.position.y = -3
-    document.querySelector('#objective')!.textContent = '遺跡の奥へ進もう'
-    document.querySelector('#message')!.textContent = '空気砲でスイッチが反応した！　開いた扉へ向かおう'
+    enemy.visible = true
+    document.querySelector('#enemy-status')!.classList.remove('hidden')
+    document.querySelector('#objective')!.textContent = '守護ロボットを空気砲で倒そう'
+    document.querySelector('#message')!.textContent = 'Space／クリックで空気砲を撃つ'
   }
+}
+
+function shootAirCannon() {
+  if (!activated || enemyDefeated || clock.elapsedTime - lastShotAt < 0.28) return
+  lastShotAt = clock.elapsedTime
+  const direction = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y))
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshStandardMaterial({ color: 0xb9f8ff, emissive: 0x4edfff, emissiveIntensity: 5, transparent: true, opacity: 0.9 }))
+  mesh.position.copy(player.position).add(new THREE.Vector3(0, 1.35, 0)).addScaledVector(direction, 1.2)
+  mesh.castShadow = true
+  scene.add(mesh)
+  projectiles.push({ mesh, velocity: direction.multiplyScalar(14) })
 }
 
 const clock = new THREE.Clock()
@@ -273,12 +319,40 @@ function animate() {
     player.position.y = THREE.MathUtils.lerp(player.position.y, 0, 0.15)
   }
   switchOrb.rotation.y += dt * 1.5
+  if (activated && !enemyDefeated) {
+    const toPlayer = new THREE.Vector3().subVectors(player.position, enemy.position)
+    toPlayer.y = 0
+    if (toPlayer.length() > 2.2) enemy.position.addScaledVector(toPlayer.normalize(), dt * 1.35)
+    enemy.lookAt(player.position.x, enemy.position.y + 1, player.position.z)
+    antennaLight.scale.setScalar(1 + Math.sin(clock.elapsedTime * 8) * 0.12)
+  }
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const projectile = projectiles[i]
+    projectile.mesh.position.addScaledVector(projectile.velocity, dt)
+    if (!enemyDefeated && projectile.mesh.position.distanceTo(enemy.position.clone().add(new THREE.Vector3(0, 1, 0))) < 1.15) {
+      enemyHp -= 1
+      scene.remove(projectile.mesh)
+      projectiles.splice(i, 1)
+      if (enemyHp <= 0) {
+        enemyDefeated = true
+        enemy.visible = false
+        document.querySelector('#enemy-status')!.textContent = '守護ロボット：撃破！'
+        document.querySelector('#objective')!.textContent = '遺跡の奥へ進もう'
+        document.querySelector('#message')!.textContent = '扉を抜けてクリアしよう'
+      } else {
+        document.querySelector('#enemy-status')!.textContent = `守護ロボット HP：${'■'.repeat(enemyHp)}${'□'.repeat(3 - enemyHp)}`
+      }
+    } else if (projectile.mesh.position.length() > 80) {
+      scene.remove(projectile.mesh)
+      projectiles.splice(i, 1)
+    }
+  }
   desiredCamera.set(player.position.x, player.position.y + 6.5, player.position.z + 9)
   camera.position.lerp(desiredCamera, 1 - Math.pow(0.001, dt))
   camera.lookAt(player.position.x, 1.1, player.position.z - 1)
   const nearSwitch = player.position.distanceTo(switchOrb.position) < 3.2
-  document.querySelector('#message')!.textContent = nearSwitch && !activated ? 'Eで空気砲を使う' : activated ? '開いた扉へ向かおう' : 'WASD / 矢印キーで移動'
-  if (activated && player.position.z < -12) document.querySelector('#complete')!.classList.remove('hidden')
+  document.querySelector('#message')!.textContent = nearSwitch && !activated ? 'Eで空気砲を使う' : activated && !enemyDefeated ? 'Space／クリックで空気砲を撃つ' : activated ? '開いた扉へ向かおう' : 'WASD / 矢印キーで移動'
+  if (activated && enemyDefeated && player.position.z < -12) document.querySelector('#complete')!.classList.remove('hidden')
   document.body.dataset.playerZ = player.position.z.toFixed(2)
   document.body.dataset.activated = String(activated)
   composer.render()

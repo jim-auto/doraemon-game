@@ -8,6 +8,7 @@ canvas { display: block; }
 .brand span { margin-left: 9px; color: #b7f2df; font-size: 12px; letter-spacing: .12em; }
 #objective { margin-top: 12px; font-size: 16px; }
 #gadget { margin-top: 4px; color: #ffe39a; font-size: 13px; }
+#enemy-status { margin-top: 4px; color: #ffb4c1; font-size: 13px; }
 #message { margin-top: 6px; color: #d8f9ee; font-size: 13px; }
 #crosshair { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); opacity: .5; font-size: 24px; pointer-events: none; }
 #complete { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 25px 40px; border: 1px solid #ffe39a; border-radius: 16px; background: #253745dd; text-align: center; font-size: 26px; box-shadow: 0 10px 50px #10202c88; }
