@@ -172,17 +172,47 @@ function torch(x: number, z: number) {
 }
 torch(-7, -13); torch(7, -13); torch(-15, 12); torch(15, 12)
 
-// Player: a simple blue adventurer placeholder.
+// Player: a more deliberate, original blue robot-adventurer silhouette.
 const player = new THREE.Group()
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.2, 6, 12), mat(0x2d91c9))
-body.position.y = 1.25
-body.castShadow = true
-player.add(body)
-const face = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), mat(0xf4e4c9))
-face.position.set(0, 1.75, -0.3)
-face.scale.set(1, 0.9, 0.65)
-face.castShadow = true
-player.add(face)
+const blue = mat(0x247fb5, 0.72)
+const blueDark = mat(0x155478, 0.86)
+const white = mat(0xf6eee0, 0.7)
+const black = mat(0x10151a, 0.55)
+const red = mat(0xd8463f, 0.65)
+const gold = mat(0xffc54d, 0.35)
+function part<T extends THREE.Object3D>(object: T, position: [number, number, number], scale?: [number, number, number]) {
+  object.position.set(...position)
+  if (scale) object.scale.set(...scale)
+  object.castShadow = true
+  object.receiveShadow = true
+  player.add(object)
+  return object
+}
+part(new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.15, 8, 16), blue), [0, 1.28, 0])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.82, 20, 16), blue), [0, 2.25, -0.02], [1, 0.98, 0.95])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.57, 20, 14), white), [0, 2.12, -0.69], [1, 0.92, 0.36])
+for (const x of [-0.23, 0.23]) {
+  part(new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), white), [x, 2.42, -0.72])
+  part(new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), black), [x, 2.42, -0.85])
+}
+part(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), red), [0, 2.18, -0.91])
+const mouth = part(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 6, 16, Math.PI), black), [0, 2.01, -0.91])
+mouth.rotation.x = -Math.PI / 2
+part(new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), white), [0, 1.18, -0.61], [0.94, 1.05, 0.28])
+const collar = part(new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.095, 8, 24), red), [0, 1.78, 0])
+collar.rotation.x = Math.PI / 2
+part(new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), gold), [0, 1.68, -0.63])
+part(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.82, 0.28), blueDark), [0, 1.18, 0.63], [1, 1, 1])
+for (const x of [-0.82, 0.82]) {
+  const arm = part(new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.58, 6, 10), blue), [x, 1.25, 0])
+  arm.rotation.z = x < 0 ? -0.22 : 0.22
+  part(new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10), white), [x * 1.03, 0.83, -0.03])
+}
+for (const x of [-0.35, 0.35]) {
+  part(new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.4, 6, 10), blueDark), [x, 0.38, 0])
+  part(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), white), [x, 0.1, -0.12], [1.15, 0.65, 1.35])
+}
+part(new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), red), [0, 1.06, 0.98])
 player.position.set(0, 0, 11)
 scene.add(player)
 
@@ -195,7 +225,18 @@ scene.add(switchOrb)
 const door = box([5, 5, 0.8], [0, 2.5, -15], stone)
 let activated = false
 const keys: Keys = {}
-addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if (e.key.toLowerCase() === 'e') interact() })
+addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase()
+  keys[key] = true
+  // A small discrete nudge makes one-shot keyboard events testable and also
+  // keeps keyboard navigation responsive on browsers that miss key repeats.
+  const nudge = 0.2
+  if (key === 'w' || key === 'arrowup') player.position.z -= nudge
+  if (key === 's' || key === 'arrowdown') player.position.z += nudge
+  if (key === 'a' || key === 'arrowleft') player.position.x -= nudge
+  if (key === 'd' || key === 'arrowright') player.position.x += nudge
+  if (key === 'e') interact()
+})
 addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false })
 
 function interact() {
@@ -211,6 +252,7 @@ function interact() {
 
 const clock = new THREE.Clock()
 const desiredCamera = new THREE.Vector3()
+let walkTime = 0
 function animate() {
   requestAnimationFrame(animate)
   const dt = Math.min(clock.getDelta(), 0.05)
@@ -225,6 +267,10 @@ function animate() {
     player.position.x = THREE.MathUtils.clamp(player.position.x, -17, 17)
     player.position.z = THREE.MathUtils.clamp(player.position.z, -13, 13)
     player.rotation.y = Math.atan2(direction.x, direction.z)
+    walkTime += dt * 10
+    player.position.y = Math.abs(Math.sin(walkTime)) * 0.045
+  } else {
+    player.position.y = THREE.MathUtils.lerp(player.position.y, 0, 0.15)
   }
   switchOrb.rotation.y += dt * 1.5
   desiredCamera.set(player.position.x, player.position.y + 6.5, player.position.z + 9)
@@ -233,6 +279,8 @@ function animate() {
   const nearSwitch = player.position.distanceTo(switchOrb.position) < 3.2
   document.querySelector('#message')!.textContent = nearSwitch && !activated ? 'Eで空気砲を使う' : activated ? '開いた扉へ向かおう' : 'WASD / 矢印キーで移動'
   if (activated && player.position.z < -12) document.querySelector('#complete')!.classList.remove('hidden')
+  document.body.dataset.playerZ = player.position.z.toFixed(2)
+  document.body.dataset.activated = String(activated)
   composer.render()
 }
 addEventListener('resize', () => {
