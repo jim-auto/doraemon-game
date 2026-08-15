@@ -135,7 +135,10 @@ function column(x: number, z: number, height = 5, broken = false) {
   box([1.7, 0.25, 1.7], [x, 0.12, z], stoneLight)
   if (broken) box([1.6, 0.8, 1.2], [x + 0.55, height + 0.7, z + 0.25], stone)
 }
-for (let x = -18; x <= 18; x += 6) { column(x, -16, 4 + Math.random() * 2, x % 12 === 0); column(x, 16, 4.5, x % 12 !== 0) }
+for (let x = -18; x <= 18; x += 6) {
+  // Leave the center of the near boundary open so the camera never hides the hero.
+  if (x !== 0) { column(x, -16, 4 + Math.random() * 2, x % 12 === 0); column(x, 16, 4.5, x % 12 !== 0) }
+}
 for (let z = -10; z <= 10; z += 6) { column(-20, z, 4.5, z % 12 === 0); column(20, z, 5, z % 12 !== 0) }
 for (const p of [[-9, 1, -5], [9, 1, -5], [-9, 1, 8], [9, 1, 8], [-4, 0.7, -10], [6, 0.45, 5]] as [number, number, number][]) {
   box([2.2, 1.4, 2.2], p, stoneLight)
