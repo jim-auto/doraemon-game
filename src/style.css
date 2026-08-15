@@ -10,7 +10,21 @@ canvas { display: block; }
 #gadget { margin-top: 4px; color: #ffe39a; font-size: 13px; }
 #enemy-status { margin-top: 4px; color: #ffb4c1; font-size: 13px; }
 #message { margin-top: 6px; color: #d8f9ee; font-size: 13px; }
+#chat-log { position: fixed; right: 24px; top: 22px; width: min(330px, 30vw); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.chat-entry { display: flex; align-items: flex-end; gap: 9px; padding: 7px 10px 7px 7px; border: 1px solid #c9efe344; border-radius: 15px 15px 5px 15px; background: linear-gradient(110deg, #132832dd, #203b42cc); box-shadow: 0 8px 22px #08151c55; backdrop-filter: blur(7px); animation: chat-in .28s ease-out both; }
+.chat-entry img { width: 48px; height: 48px; flex: 0 0 48px; object-fit: cover; object-position: center top; border-radius: 12px; border: 1px solid #d6fff044; background: #193942; }
+.chat-entry b { display: block; color: #ffe39a; font-size: 11px; letter-spacing: .08em; }
+.chat-entry p { margin: 3px 0 0; color: #f4fff9; font-size: 12px; line-height: 1.45; text-shadow: 0 1px 3px #071217; }
+@keyframes chat-in { from { opacity: 0; transform: translateX(18px) scale(.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
 #crosshair { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); opacity: .5; font-size: 24px; pointer-events: none; }
 #complete { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 25px 40px; border: 1px solid #ffe39a; border-radius: 16px; background: #253745dd; text-align: center; font-size: 26px; box-shadow: 0 10px 50px #10202c88; }
 #complete small { display: block; margin-top: 8px; color: #b7f2df; font-size: 13px; }
 .hidden { display: none; }
+@media (max-width: 760px) {
+  #hud { padding: 14px 16px; }
+  .brand { font-size: 19px; }
+  #chat-log { right: 12px; top: auto; bottom: 14px; width: min(300px, calc(100vw - 24px)); }
+  .chat-entry { padding: 5px 8px 5px 5px; }
+  .chat-entry img { width: 40px; height: 40px; flex-basis: 40px; }
+  .chat-entry p { font-size: 11px; }
+}

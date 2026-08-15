@@ -21,8 +21,22 @@ app.innerHTML = `
     <div id="message">WASD / 矢印キーで移動　・　Eで調べる</div>
   </div>
   <div id="crosshair">＋</div>
+  <aside id="chat-log" aria-label="仲間のチャット"></aside>
   <div id="complete" class="hidden"><div>原始の森を抜けた！</div><small>時空の旅はまだ始まったばかり</small></div>
 `
+
+const chatLog = document.querySelector<HTMLElement>('#chat-log')!
+const speakerNames: Record<string, string> = { doraemon: 'ドラえもん', nobita: 'のび太', shizuka: 'しずか', gian: 'ジャイアン', suneo: 'スネ夫' }
+function addChat(speaker: keyof typeof speakerNames, text: string) {
+  const entry = document.createElement('div')
+  entry.className = 'chat-entry'
+  entry.innerHTML = `<img src="/ui/portraits/${speaker}.png" alt=""><div><b>${speakerNames[speaker]}</b><p>${text}</p></div>`
+  chatLog.append(entry)
+  while (chatLog.children.length > 4) chatLog.firstElementChild?.remove()
+  document.body.dataset.chatCount = String(chatLog.children.length)
+}
+addChat('doraemon', 'みんな、ここが7万年前の日本だよ！')
+addChat('nobita', 'すごいや……でも、あの光ってる門は何？')
 
 THREE.ColorManagement.enabled = true
 const scene = new THREE.Scene()
@@ -595,6 +609,8 @@ function interact() {
     document.querySelector('#enemy-status')!.classList.remove('hidden')
     document.querySelector('#objective')!.textContent = '土偶の守護者を空気砲で倒そう'
     document.querySelector('#message')!.textContent = 'Space／クリックで空気砲を撃つ'
+    addChat('suneo', 'あの土偶、こっちを見てるよ！')
+    addChat('gian', '任せろ！ 空気砲で道を開けるぞ！')
   }
 }
 
@@ -706,6 +722,8 @@ function animate() {
         document.querySelector('#enemy-status')!.textContent = '土偶の守護者：撃破！'
         document.querySelector('#objective')!.textContent = '遺跡の奥へ進もう'
         document.querySelector('#message')!.textContent = '扉を抜けてクリアしよう'
+        addChat('shizuka', 'やった！ みんな、扉の先も気をつけてね。')
+        addChat('doraemon', 'この先に、もっと大きな謎が待っているよ！')
       } else {
         document.querySelector('#enemy-status')!.textContent = `土偶の守護者 HP：${'■'.repeat(enemyHp)}${'□'.repeat(3 - enemyHp)}`
       }
@@ -722,7 +740,13 @@ function animate() {
   camera.lookAt(player.position.x, 1.25, player.position.z - 1)
   const nearSwitch = player.position.distanceTo(switchOrb.position) < 3.2
   document.querySelector('#message')!.textContent = nearSwitch && !activated ? 'Eで空気砲を使う' : activated && !enemyDefeated ? 'Space／クリックで空気砲を撃つ' : activated ? '開いた扉へ向かおう' : 'WASD / 矢印キーで移動'
-  if (activated && enemyDefeated && player.position.z < -12) document.querySelector('#complete')!.classList.remove('hidden')
+  if (activated && enemyDefeated && player.position.z < -12) {
+    document.querySelector('#complete')!.classList.remove('hidden')
+    if (document.body.dataset.cleared !== 'true') {
+      document.body.dataset.cleared = 'true'
+      addChat('nobita', 'みんなと一緒なら、もっと先まで行けそう！')
+    }
+  }
   document.body.dataset.playerZ = player.position.z.toFixed(2)
   document.body.dataset.activated = String(activated)
   composer.render()
