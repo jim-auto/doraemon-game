@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
 import { TextureLoader } from 'three'
@@ -453,27 +454,41 @@ function part<T extends THREE.Object3D>(object: T, position: [number, number, nu
   player.add(object)
   return object
 }
-part(new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.15, 8, 16), blue), [0, 1.28, 0])
-part(new THREE.Mesh(new THREE.SphereGeometry(0.82, 20, 16), blue), [0, 2.25, -0.02], [1, 0.98, 0.95])
-part(new THREE.Mesh(new THREE.SphereGeometry(0.57, 20, 14), white), [0, 2.12, -0.69], [1, 0.92, 0.36])
+part(new THREE.Mesh(new RoundedBoxGeometry(1.32, 1.48, 1.08, 5, 0.2), blue), [0, 1.28, 0])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.82, 28, 20), blue), [0, 2.25, -0.02], [1, 0.98, 0.95])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.57, 24, 18), white), [0, 2.12, -0.69], [1, 0.92, 0.36])
+// Pocket and backpack shell give the silhouette detail from both camera sides.
+part(new THREE.Mesh(new RoundedBoxGeometry(0.76, 0.42, 0.12, 4, 0.07), blueDark), [0, 1.2, -0.57])
+part(new THREE.Mesh(new RoundedBoxGeometry(0.86, 0.92, 0.3, 5, 0.1), blueDark), [0, 1.24, 0.64])
+for (const x of [-0.48, 0.48]) {
+  const strap = part(new THREE.Mesh(new RoundedBoxGeometry(0.12, 0.98, 0.08, 3, 0.03), blue), [x, 1.28, 0.79])
+  strap.rotation.z = x < 0 ? -0.17 : 0.17
+}
 for (const x of [-0.23, 0.23]) {
   part(new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), white), [x, 2.42, -0.72])
   part(new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), black), [x, 2.42, -0.85])
 }
 part(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), red), [0, 2.18, -0.91])
 const mouth = part(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 6, 16, Math.PI), black), [0, 2.01, -0.91])
-mouth.rotation.x = -Math.PI / 2
-part(new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), white), [0, 1.18, -0.61], [0.94, 1.05, 0.28])
+mouth.rotation.set(0, 0, 0)
+for (const side of [-1, 1]) {
+  for (const y of [1.98, 2.12, 2.25]) {
+    const whisker = part(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.38, 6), black), [side * 0.34, y, -0.84])
+    whisker.rotation.z = side * (Math.PI / 2 + (y - 2.12) * 0.3)
+  }
+}
 const collar = part(new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.095, 8, 24), red), [0, 1.78, 0])
 collar.rotation.x = Math.PI / 2
-part(new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), gold), [0, 1.68, -0.63])
-part(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.82, 0.28), blueDark), [0, 1.18, 0.63], [1, 1, 1])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.17, 18, 14), gold), [0, 1.68, -0.63])
+part(new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.026, 6, 18), mat(0x8f5d23, 0.5)), [0, 1.68, -0.78])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), mat(0x4c3520, 0.8)), [0, 1.58, -0.79])
 const walkArms: THREE.Object3D[] = []
 const walkLegs: THREE.Object3D[] = []
 for (const x of [-0.82, 0.82]) {
   const arm = part(new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.58, 6, 10), blue), [x, 1.25, 0])
   arm.rotation.z = x < 0 ? -0.22 : 0.22
   walkArms.push(arm)
+  part(new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), blueDark), [x * 0.92, 1.42, 0])
   part(new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10), white), [x * 1.03, 0.83, -0.03])
 }
 for (const x of [-0.35, 0.35]) {
@@ -481,7 +496,8 @@ for (const x of [-0.35, 0.35]) {
   walkLegs.push(leg)
   part(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), white), [x, 0.1, -0.12], [1.15, 0.65, 1.35])
 }
-part(new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), red), [0, 1.06, 0.98])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), red), [0, 1.06, 0.98])
+part(new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), red), [0, 1.06, 1.14])
 player.position.set(0, 0, 11)
 scene.add(player)
 
