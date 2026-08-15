@@ -302,7 +302,10 @@ enemy.visible = false
 enemy.castShadow = true
 scene.add(enemy)
 const projectiles: { mesh: THREE.Mesh; velocity: THREE.Vector3 }[] = []
+const cannonEffects: { group: THREE.Group; life: number; maxLife: number }[] = []
 let lastShotAt = -Infinity
+let screenShake = 0
+let audioContext: AudioContext | undefined
 const keys: Keys = {}
 addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase()
@@ -337,11 +340,45 @@ function shootAirCannon() {
   if (!activated || enemyDefeated || clock.elapsedTime - lastShotAt < 0.28) return
   lastShotAt = clock.elapsedTime
   const direction = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y))
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshStandardMaterial({ color: 0xb9f8ff, emissive: 0x4edfff, emissiveIntensity: 5, transparent: true, opacity: 0.9 }))
-  mesh.position.copy(player.position).add(new THREE.Vector3(0, 1.35, 0)).addScaledVector(direction, 1.2)
+  const origin = player.position.clone().add(new THREE.Vector3(0, 1.35, 0)).addScaledVector(direction, 1.0)
+  const cannonMaterial = new THREE.MeshStandardMaterial({ color: 0xe5fdff, emissive: 0x4edfff, emissiveIntensity: 8, transparent: true, opacity: 0.9 })
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), cannonMaterial)
+  mesh.position.copy(origin).addScaledVector(direction, 0.5)
   mesh.castShadow = true
   scene.add(mesh)
   projectiles.push({ mesh, velocity: direction.multiplyScalar(14) })
+  const effect = new THREE.Group()
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.08, 2.2, 16, 1, true), cannonMaterial)
+  barrel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction)
+  barrel.position.copy(origin).addScaledVector(direction, 0.9)
+  effect.add(barrel)
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.075, 8, 24), cannonMaterial)
+  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction)
+  ring.position.copy(origin)
+  effect.add(ring)
+  scene.add(effect)
+  cannonEffects.push({ group: effect, life: 0.22, maxLife: 0.22 })
+  screenShake = 0.16
+  player.position.addScaledVector(direction, -0.12)
+  playCannonSound()
+}
+
+function playCannonSound() {
+  try {
+    const Context = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Context) return
+    audioContext ??= new Context()
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    oscillator.type = 'sawtooth'
+    oscillator.frequency.setValueAtTime(170, audioContext.currentTime)
+    oscillator.frequency.exponentialRampToValueAtTime(48, audioContext.currentTime + 0.16)
+    gain.gain.setValueAtTime(0.16, audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.18)
+    oscillator.connect(gain).connect(audioContext.destination)
+    oscillator.start()
+    oscillator.stop(audioContext.currentTime + 0.18)
+  } catch { /* Audio is optional when autoplay is blocked. */ }
 }
 
 const clock = new THREE.Clock()
@@ -374,6 +411,19 @@ function animate() {
     walkLegs.forEach((leg) => { leg.rotation.x = THREE.MathUtils.lerp(leg.rotation.x, 0, 0.18) })
   }
   switchOrb.rotation.y += dt * 1.5
+  for (let i = cannonEffects.length - 1; i >= 0; i--) {
+    const effect = cannonEffects[i]
+    effect.life -= dt
+    const progress = 1 - effect.life / effect.maxLife
+    effect.group.scale.setScalar(1 + progress * 0.8)
+    effect.group.children.forEach((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) child.material.opacity = 1 - progress
+    })
+    if (effect.life <= 0) {
+      scene.remove(effect.group)
+      cannonEffects.splice(i, 1)
+    }
+  }
   if (activated && !enemyDefeated) {
     const toPlayer = new THREE.Vector3().subVectors(player.position, enemy.position)
     toPlayer.y = 0
@@ -403,6 +453,9 @@ function animate() {
     }
   }
   desiredCamera.set(0, player.position.y + 5.3, 10.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y).add(player.position)
+  desiredCamera.x += (Math.random() - 0.5) * screenShake
+  desiredCamera.y += (Math.random() - 0.5) * screenShake
+  screenShake = Math.max(0, screenShake - dt * 0.8)
   camera.position.lerp(desiredCamera, 1 - Math.pow(0.001, dt))
   camera.lookAt(player.position.x, 1.25, player.position.z - 1)
   const nearSwitch = player.position.distanceTo(switchOrb.position) < 3.2
