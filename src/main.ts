@@ -244,13 +244,17 @@ const collar = part(new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.095, 8, 24), 
 collar.rotation.x = Math.PI / 2
 part(new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), gold), [0, 1.68, -0.63])
 part(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.82, 0.28), blueDark), [0, 1.18, 0.63], [1, 1, 1])
+const walkArms: THREE.Object3D[] = []
+const walkLegs: THREE.Object3D[] = []
 for (const x of [-0.82, 0.82]) {
   const arm = part(new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.58, 6, 10), blue), [x, 1.25, 0])
   arm.rotation.z = x < 0 ? -0.22 : 0.22
+  walkArms.push(arm)
   part(new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10), white), [x * 1.03, 0.83, -0.03])
 }
 for (const x of [-0.35, 0.35]) {
-  part(new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.4, 6, 10), blueDark), [x, 0.38, 0])
+  const leg = part(new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.4, 6, 10), blueDark), [x, 0.38, 0])
+  walkLegs.push(leg)
   part(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), white), [x, 0.1, -0.12], [1.15, 0.65, 1.35])
 }
 part(new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), red), [0, 1.06, 0.98])
@@ -302,10 +306,10 @@ addEventListener('keydown', (e) => {
   // A small discrete nudge makes one-shot keyboard events testable and also
   // keeps keyboard navigation responsive on browsers that miss key repeats.
   const nudge = 0.2
-  if (key === 'w' || key === 'arrowup') { player.position.z -= nudge; player.rotation.y = Math.PI }
-  if (key === 's' || key === 'arrowdown') { player.position.z += nudge; player.rotation.y = 0 }
-  if (key === 'a' || key === 'arrowleft') { player.position.x -= nudge; player.rotation.y = -Math.PI / 2 }
-  if (key === 'd' || key === 'arrowright') { player.position.x += nudge; player.rotation.y = Math.PI / 2 }
+  if (key === 'w' || key === 'arrowup') { player.position.z -= nudge; player.rotation.y = 0 }
+  if (key === 's' || key === 'arrowdown') { player.position.z += nudge; player.rotation.y = Math.PI }
+  if (key === 'a' || key === 'arrowleft') { player.position.x -= nudge; player.rotation.y = Math.PI / 2 }
+  if (key === 'd' || key === 'arrowright') { player.position.x += nudge; player.rotation.y = -Math.PI / 2 }
   if (key === 'e') interact()
   if (key === ' ' || key === 'spacebar' || e.code === 'Space') shootAirCannon()
 })
@@ -328,7 +332,7 @@ function interact() {
 function shootAirCannon() {
   if (!activated || enemyDefeated || clock.elapsedTime - lastShotAt < 0.28) return
   lastShotAt = clock.elapsedTime
-  const direction = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y))
+  const direction = new THREE.Vector3(-Math.sin(player.rotation.y), 0, -Math.cos(player.rotation.y))
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshStandardMaterial({ color: 0xb9f8ff, emissive: 0x4edfff, emissiveIntensity: 5, transparent: true, opacity: 0.9 }))
   mesh.position.copy(player.position).add(new THREE.Vector3(0, 1.35, 0)).addScaledVector(direction, 1.2)
   mesh.castShadow = true
@@ -352,11 +356,18 @@ function animate() {
     player.position.addScaledVector(direction, dt * 6)
     player.position.x = THREE.MathUtils.clamp(player.position.x, -17, 17)
     player.position.z = THREE.MathUtils.clamp(player.position.z, -13, 13)
-    player.rotation.y = Math.atan2(direction.x, direction.z)
+    // The character mesh faces local -Z, so rotate its -Z axis into movement direction.
+    player.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI
     walkTime += dt * 10
     player.position.y = Math.abs(Math.sin(walkTime)) * 0.045
+    walkArms[0].rotation.x = Math.sin(walkTime) * 0.42
+    walkArms[1].rotation.x = -Math.sin(walkTime) * 0.42
+    walkLegs[0].rotation.x = -Math.sin(walkTime) * 0.32
+    walkLegs[1].rotation.x = Math.sin(walkTime) * 0.32
   } else {
     player.position.y = THREE.MathUtils.lerp(player.position.y, 0, 0.15)
+    walkArms.forEach((arm) => { arm.rotation.x = THREE.MathUtils.lerp(arm.rotation.x, 0, 0.18) })
+    walkLegs.forEach((leg) => { leg.rotation.x = THREE.MathUtils.lerp(leg.rotation.x, 0, 0.18) })
   }
   switchOrb.rotation.y += dt * 1.5
   if (activated && !enemyDefeated) {
@@ -387,9 +398,9 @@ function animate() {
       projectiles.splice(i, 1)
     }
   }
-  desiredCamera.set(player.position.x, player.position.y + 6.5, player.position.z + 9)
+  desiredCamera.set(0, player.position.y + 5.3, 10.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y).add(player.position)
   camera.position.lerp(desiredCamera, 1 - Math.pow(0.001, dt))
-  camera.lookAt(player.position.x, 1.1, player.position.z - 1)
+  camera.lookAt(player.position.x, 1.25, player.position.z - 1)
   const nearSwitch = player.position.distanceTo(switchOrb.position) < 3.2
   document.querySelector('#message')!.textContent = nearSwitch && !activated ? 'Eで空気砲を使う' : activated && !enemyDefeated ? 'Space／クリックで空気砲を撃つ' : activated ? '開いた扉へ向かおう' : 'WASD / 矢印キーで移動'
   if (activated && enemyDefeated && player.position.z < -12) document.querySelector('#complete')!.classList.remove('hidden')
