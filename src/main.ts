@@ -382,18 +382,51 @@ fallenTrunk(-12, 10, 4.8, 0.25)
 fallenTrunk(13, 13, 5.6, -0.45)
 
 // An original clay-dogū altar and a glowing time-rift silhouette anchor the theme.
+const clay = mat(0xa85e42, 0.9)
+const clayDark = mat(0x713b31, 0.96)
+const runeMaterial = new THREE.MeshStandardMaterial({ color: 0x7cf2df, emissive: 0x27aa9b, emissiveIntensity: 2.2, roughness: 0.42 })
+const altar = new THREE.Group()
+for (const [radius, height, y] of [[2.25, 0.28, 0.14], [1.75, 0.32, 0.43], [1.28, 0.22, 0.7]] as [number, number, number][]) {
+  const slab = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.08, height, 12), stoneLight)
+  slab.position.set(-10, y, -9)
+  slab.castShadow = slab.receiveShadow = true
+  altar.add(slab)
+}
+const altarRune = new THREE.Mesh(new THREE.TorusGeometry(1.02, 0.045, 6, 32), runeMaterial)
+altarRune.position.set(-10, 0.83, -9)
+altarRune.rotation.x = Math.PI / 2
+altar.add(altarRune)
+scene.add(altar)
 const dogu = new THREE.Group()
-const doguBody = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.9, 1.55, 8), mat(0xb96542, 0.88))
+const doguBody = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.9, 1.55, 10), clay)
 doguBody.position.y = 0.9
 dogu.add(doguBody)
-const doguHead = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 8), mat(0xd07a4e, 0.86))
+const doguHead = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), clay)
 doguHead.position.y = 1.95
 doguHead.scale.set(1.15, 0.95, 0.65)
 dogu.add(doguHead)
+for (const y of [0.55, 1.02, 1.48]) {
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.72 - (y - 0.55) * 0.08, 0.045, 6, 20), clayDark)
+  band.position.y = y
+  band.rotation.x = Math.PI / 2
+  dogu.add(band)
+}
+for (const x of [-0.72, 0.72]) {
+  const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 5, 8), clay)
+  arm.position.set(x, 1.04, -0.02)
+  arm.rotation.z = x < 0 ? -0.48 : 0.48
+  dogu.add(arm)
+}
 for (const x of [-0.25, 0.25]) {
-  const hole = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshStandardMaterial({ color: 0x3d241f, roughness: 1 }))
+  const hole = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshStandardMaterial({ color: 0x241817, roughness: 1 }))
   hole.position.set(x, 2.05, -0.58)
   dogu.add(hole)
+}
+for (const x of [-0.42, 0.42]) {
+  const cheek = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.035, 5, 12), clayDark)
+  cheek.position.set(x, 1.72, -0.56)
+  cheek.rotation.x = Math.PI / 2
+  dogu.add(cheek)
 }
 dogu.position.set(-10, 0, -9)
 dogu.scale.setScalar(1.35)
@@ -457,6 +490,31 @@ const switchOrb = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), mat(0x5
 switchOrb.position.set(0, 1, 1)
 switchOrb.castShadow = true
 scene.add(switchOrb)
+const switchPedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.72, 0.72, 10), stone)
+switchPedestal.position.set(0, 0.58, 1)
+switchPedestal.castShadow = switchPedestal.receiveShadow = true
+scene.add(switchPedestal)
+const switchHalo = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.055, 6, 28), runeMaterial)
+switchHalo.position.set(0, 0.96, 1)
+switchHalo.rotation.x = Math.PI / 2
+scene.add(switchHalo)
+
+// A small prehistoric firepit gives the empty mid-ground a believable human trace.
+const emberMaterial = new THREE.MeshStandardMaterial({ color: 0xffa33e, emissive: 0xff3b0f, emissiveIntensity: 4.5, roughness: 0.6 })
+for (let i = 0; i < 9; i++) {
+  const a = (i / 9) * Math.PI * 2
+  const stoneRing = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35, 1), stoneLight)
+  stoneRing.position.set(-6 + Math.cos(a) * 1.25, 0.28, 5 + Math.sin(a) * 1.25)
+  stoneRing.scale.y = 0.65
+  stoneRing.castShadow = stoneRing.receiveShadow = true
+  scene.add(stoneRing)
+}
+const ember = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 1), emberMaterial)
+ember.position.set(-6, 0.68, 5)
+scene.add(ember)
+const fireLight = new THREE.PointLight(0xff7138, 2.5, 8, 2)
+fireLight.position.set(-6, 1.2, 5)
+scene.add(fireLight)
 
 // The gate is intentionally open in the center so it does not occlude the player.
 const door = box([5.2, 0.85, 0.9], [0, 5.9, -15], stoneLight)
