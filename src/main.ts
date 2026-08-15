@@ -25,8 +25,8 @@ app.innerHTML = `
 
 THREE.ColorManagement.enabled = true
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x8eb5ad)
-scene.fog = new THREE.FogExp2(0x8eb5ad, 0.016)
+scene.background = new THREE.Color(0x9bbab5)
+scene.fog = new THREE.FogExp2(0x9bbab5, 0.013)
 
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 150)
 camera.position.set(0, 7, 11)
@@ -46,7 +46,8 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.
 composer.addPass(bloom)
 composer.addPass(new OutputPass())
 
-scene.add(new THREE.HemisphereLight(0xafd9e1, 0x2a201c, 1.3))
+scene.add(new THREE.HemisphereLight(0xbadfe2, 0x3c2b25, 1.55))
+scene.add(new THREE.AmbientLight(0x8fa89d, 0.32))
 const sun = new THREE.DirectionalLight(0xffd3a1, 3.5)
 sun.position.set(-12, 22, 8)
 sun.castShadow = true
@@ -152,6 +153,30 @@ ground.rotation.x = -Math.PI / 2
 ground.receiveShadow = true
 scene.add(ground)
 
+// A restrained atmospheric dome replaces the flat color backdrop with a deep
+// sky-to-horizon gradient and a soft sun halo behind the mountain ridge.
+const skyCanvas = document.createElement('canvas')
+skyCanvas.width = 1024
+skyCanvas.height = 512
+const skyContext = skyCanvas.getContext('2d')!
+const skyGradient = skyContext.createLinearGradient(0, 0, 0, 512)
+skyGradient.addColorStop(0, '#6f9fa9')
+skyGradient.addColorStop(0.52, '#a7c3bc')
+skyGradient.addColorStop(1, '#6e8074')
+skyContext.fillStyle = skyGradient
+skyContext.fillRect(0, 0, 1024, 512)
+const sunHalo = skyContext.createRadialGradient(710, 145, 5, 710, 145, 150)
+sunHalo.addColorStop(0, 'rgba(255,238,190,0.48)')
+sunHalo.addColorStop(0.35, 'rgba(255,225,170,0.16)')
+sunHalo.addColorStop(1, 'rgba(255,225,170,0)')
+skyContext.fillStyle = sunHalo
+skyContext.fillRect(530, 0, 360, 300)
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(82, 32, 16),
+  new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(skyCanvas), side: THREE.BackSide, depthWrite: false }),
+)
+scene.add(sky)
+
 // External CC0 assets from Quaternius' Modular Dungeon pack.
 // They are loaded as OBJ+MTL because the source pack provides that format.
 const externalAssetBase = '/models/dungeon/'
@@ -205,6 +230,36 @@ for (const c of [
   [-21, 9, 4.6, 5.4, 3.8, 0.4], [21, 10, 4.2, 5.8, 3.6, -0.6],
   [-15, 18, 4.6, 4.2, 3.0, 0.1], [15, 18, 5.0, 4.4, 3.1, -0.2],
 ] as [number, number, number, number, number, number][]) cliff(c[0], c[1], [c[2], c[3], c[4]], c[5])
+
+// Layered escarpments and a distant ridge give the wilderness a real horizon.
+// The player should read a valley, not a room filled with separate props.
+const deepStone = mat(0x5c5148, 0.98, stoneTexture)
+const mossStone = mat(0x7d7965, 0.96, stoneTexture)
+function rockMass(position: [number, number, number], scale: [number, number, number], material = deepStone, detail = 1) {
+  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, detail), material)
+  mesh.position.set(...position)
+  mesh.scale.set(...scale)
+  mesh.rotation.set(Math.random() * 0.25, Math.random() * Math.PI, Math.random() * 0.18)
+  mesh.castShadow = mesh.receiveShadow = true
+  scene.add(mesh)
+  return mesh
+}
+for (const [x, z, sx, sy, sz] of [
+  [-25, -27, 7, 7, 5], [-16, -30, 8, 9, 6], [-6, -33, 7, 8, 5], [5, -32, 9, 10, 6], [16, -29, 8, 8, 5], [26, -26, 7, 7, 5],
+] as [number, number, number, number, number][]) rockMass([x, sy * 0.35, z], [sx, sy, sz], deepStone, 1)
+for (const [x, z, s] of [[-19, -20, 3.5], [-14, -21, 2.8], [14, -21, 3.2], [19, -19, 2.7], [-23, 3, 3.1], [23, 4, 3.4]] as [number, number, number][]) {
+  rockMass([x, s * 0.55, z], [s, s * 1.4, s * 0.8], mossStone, 1)
+  rockMass([x + (x < 0 ? 1.2 : -1.2), s * 0.3, z + 1.1], [s * 0.7, s * 0.7, s * 0.9], deepStone, 1)
+}
+
+// Broken shelves read as eroded strata and hide the artificial square boundary.
+for (const side of [-1, 1]) {
+  for (let i = 0; i < 7; i++) {
+    const z = -18 + i * 5.2
+    const x = side * (18 + (i % 2) * 2.2)
+    rockMass([x, 1.1 + (i % 3) * 0.55, z], [3.8, 1.4 + (i % 2) * 0.7, 1.5], i % 2 ? mossStone : deepStone, 1)
+  }
+}
 
 function boulder(x: number, z: number, size: number, material = stoneLight) {
   const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 1), material)
@@ -283,6 +338,48 @@ function primitiveTree(x: number, z: number, size: number) {
   }
 }
 for (const tree of [[-15, -6, 1.5], [15, -7, 1.8], [-16, 6, 1.4], [16, 7, 1.6], [-11, 13, 1.2], [11, 13, 1.3]] as [number, number, number][]) primitiveTree(...tree)
+
+// Dense backline vegetation creates scale and occlusion without blocking the route.
+for (const tree of [
+  [-12, -22, 0.85], [-8, -23, 0.7], [-3, -24, 0.62], [4, -24, 0.72], [10, -23, 0.9], [15, -21, 0.7],
+  [-20, -15, 0.95], [20, -14, 0.92], [-20, 1, 0.85], [20, 2, 0.8], [-18, 13, 0.7], [18, 14, 0.72],
+] as [number, number, number][]) primitiveTree(...tree)
+
+// A lower layer of ferns and scrub breaks the clean horizon at the player's eye line.
+const fernMaterials = [mat(0x294c35, 0.98), mat(0x3d6941, 0.98), mat(0x5c7e49, 0.98)]
+function fern(x: number, z: number, size: number, material = fernMaterials[1]) {
+  const group = new THREE.Group()
+  group.position.set(x, 0, z)
+  for (let i = 0; i < 5; i++) {
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.07 * size, 1.5 * size, 5), material)
+    leaf.position.y = 0.62 * size
+    leaf.rotation.z = (i - 2) * 0.27
+    leaf.rotation.y = i * 1.25
+    leaf.castShadow = true
+    group.add(leaf)
+  }
+  scene.add(group)
+}
+for (let i = 0; i < 34; i++) {
+  const side = i % 2 ? 1 : -1
+  fern(side * (8 + Math.random() * 10), -13 + Math.random() * 26, 0.45 + Math.random() * 0.65, fernMaterials[i % fernMaterials.length])
+}
+
+// Fallen trunks add scale cues and make the forest feel older than the ruins.
+function fallenTrunk(x: number, z: number, length: number, rotation: number) {
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.48, length, 10), mat(0x49362a, 0.98))
+  trunk.position.set(x, 0.42, z)
+  trunk.rotation.z = Math.PI / 2
+  trunk.rotation.y = rotation
+  trunk.castShadow = trunk.receiveShadow = true
+  scene.add(trunk)
+  const cut = new THREE.Mesh(new THREE.CircleGeometry(0.33, 10), mat(0x8b6948, 0.98))
+  cut.position.set(x + Math.cos(rotation) * length * 0.5, 0.42, z - Math.sin(rotation) * length * 0.5)
+  cut.rotation.y = rotation + Math.PI / 2
+  scene.add(cut)
+}
+fallenTrunk(-12, 10, 4.8, 0.25)
+fallenTrunk(13, 13, 5.6, -0.45)
 
 // An original clay-dogū altar and a glowing time-rift silhouette anchor the theme.
 const dogu = new THREE.Group()
