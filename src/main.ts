@@ -12,20 +12,20 @@ type Keys = Record<string, boolean>
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
   <div id="hud">
-    <div class="brand">時空遺跡 <span>prototype 01</span></div>
-    <div id="objective">遺跡のスイッチを探そう</div>
+    <div class="brand">日本誕生編 <span>prototype 02</span></div>
+    <div id="objective">7万年前の日本を探検しよう</div>
     <div id="gadget">ひみつ道具：空気砲</div>
-    <div id="enemy-status" class="hidden">守護ロボット HP：■■■</div>
+    <div id="enemy-status" class="hidden">土偶の守護者 HP：■■■</div>
     <div id="message">WASD / 矢印キーで移動　・　Eで調べる</div>
   </div>
   <div id="crosshair">＋</div>
-  <div id="complete" class="hidden"><div>扉が開いた！</div><small>古代遺跡の奥へ進めます</small></div>
+  <div id="complete" class="hidden"><div>原始の森を抜けた！</div><small>時空の旅はまだ始まったばかり</small></div>
 `
 
 THREE.ColorManagement.enabled = true
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x7897a0)
-scene.fog = new THREE.FogExp2(0x7897a0, 0.018)
+scene.background = new THREE.Color(0x8eb5ad)
+scene.fog = new THREE.FogExp2(0x8eb5ad, 0.016)
 
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 150)
 camera.position.set(0, 7, 11)
@@ -173,6 +173,46 @@ function torch(x: number, z: number) {
 }
 torch(-7, -13); torch(7, -13); torch(-15, 12); torch(15, 12)
 
+function primitiveTree(x: number, z: number, size: number) {
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * size, 0.35 * size, 2.8 * size, 7), mat(0x65452f, 0.95))
+  trunk.position.set(x, 1.4 * size, z)
+  trunk.rotation.z = (Math.random() - 0.5) * 0.18
+  trunk.castShadow = true
+  scene.add(trunk)
+  const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.35 * size, 2.8 * size, 7), mat(0x3f7652, 0.92))
+  leaves.position.set(x, 3.2 * size, z)
+  leaves.castShadow = true
+  scene.add(leaves)
+  const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(1.05 * size, 2.2 * size, 7), mat(0x5d9563, 0.92))
+  leaves2.position.set(x + 0.2 * size, 4.6 * size, z)
+  leaves2.castShadow = true
+  scene.add(leaves2)
+}
+for (const tree of [[-15, -6, 1.5], [15, -7, 1.8], [-16, 6, 1.4], [16, 7, 1.6], [-11, 13, 1.2], [11, 13, 1.3]] as [number, number, number][]) primitiveTree(...tree)
+
+// An original clay-dogū altar and a glowing time-rift silhouette anchor the theme.
+const dogu = new THREE.Group()
+const doguBody = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.9, 1.55, 8), mat(0xb96542, 0.88))
+doguBody.position.y = 0.9
+dogu.add(doguBody)
+const doguHead = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 8), mat(0xd07a4e, 0.86))
+doguHead.position.y = 1.95
+doguHead.scale.set(1.15, 0.95, 0.65)
+dogu.add(doguHead)
+for (const x of [-0.25, 0.25]) {
+  const hole = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshStandardMaterial({ color: 0x3d241f, roughness: 1 }))
+  hole.position.set(x, 2.05, -0.58)
+  dogu.add(hole)
+}
+dogu.position.set(-10, 0, -9)
+dogu.scale.setScalar(1.35)
+dogu.traverse((child) => { if (child instanceof THREE.Mesh) child.castShadow = child.receiveShadow = true })
+scene.add(dogu)
+const rift = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.18, 12, 48), new THREE.MeshStandardMaterial({ color: 0xb5f8ff, emissive: 0x3bbfe2, emissiveIntensity: 3, transparent: true, opacity: 0.85 }))
+rift.position.set(0, 4.4, -14.7)
+rift.rotation.x = Math.PI / 2
+scene.add(rift)
+
 // Player: a more deliberate, original blue robot-adventurer silhouette.
 const player = new THREE.Group()
 const blue = mat(0x247fb5, 0.72)
@@ -228,11 +268,11 @@ let activated = false
 let enemyHp = 3
 let enemyDefeated = false
 const enemy = new THREE.Group()
-const enemyBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.65, 0.9, 6, 12), mat(0x544d73, 0.65))
+const enemyBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.65, 0.9, 6, 12), mat(0x9c593e, 0.88))
 enemyBody.position.y = 1.05
 enemyBody.castShadow = true
 enemy.add(enemyBody)
-const enemyHead = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 12), mat(0x8b79a5, 0.6))
+const enemyHead = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 12), mat(0xc8754c, 0.82))
 enemyHead.position.y = 1.9
 enemyHead.castShadow = true
 enemy.add(enemyHead)
@@ -280,7 +320,7 @@ function interact() {
     door.position.y = -3
     enemy.visible = true
     document.querySelector('#enemy-status')!.classList.remove('hidden')
-    document.querySelector('#objective')!.textContent = '守護ロボットを空気砲で倒そう'
+    document.querySelector('#objective')!.textContent = '土偶の守護者を空気砲で倒そう'
     document.querySelector('#message')!.textContent = 'Space／クリックで空気砲を撃つ'
   }
 }
@@ -336,11 +376,11 @@ function animate() {
       if (enemyHp <= 0) {
         enemyDefeated = true
         enemy.visible = false
-        document.querySelector('#enemy-status')!.textContent = '守護ロボット：撃破！'
+        document.querySelector('#enemy-status')!.textContent = '土偶の守護者：撃破！'
         document.querySelector('#objective')!.textContent = '遺跡の奥へ進もう'
         document.querySelector('#message')!.textContent = '扉を抜けてクリアしよう'
       } else {
-        document.querySelector('#enemy-status')!.textContent = `守護ロボット HP：${'■'.repeat(enemyHp)}${'□'.repeat(3 - enemyHp)}`
+        document.querySelector('#enemy-status')!.textContent = `土偶の守護者 HP：${'■'.repeat(enemyHp)}${'□'.repeat(3 - enemyHp)}`
       }
     } else if (projectile.mesh.position.length() > 80) {
       scene.remove(projectile.mesh)
