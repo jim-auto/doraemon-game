@@ -267,7 +267,8 @@ switchOrb.position.set(0, 1, 1)
 switchOrb.castShadow = true
 scene.add(switchOrb)
 
-const door = box([5, 5, 0.8], [0, 2.5, -15], stone)
+// The gate is intentionally open in the center so it does not occlude the player.
+const door = box([5.2, 0.85, 0.9], [0, 5.9, -15], stoneLight)
 let activated = false
 let enemyHp = 3
 let enemyDefeated = false
