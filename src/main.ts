@@ -77,12 +77,54 @@ function makeTexture(base: string, accent: string, repeat: [number, number]) {
   return texture
 }
 
+function makeNormalTexture(repeat: [number, number]) {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 256
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = 'rgb(128,128,255)'
+  ctx.fillRect(0, 0, 256, 256)
+  for (let i = 0; i < 900; i++) {
+    const value = 112 + Math.random() * 32
+    ctx.fillStyle = `rgb(${value},${value},255)`
+    ctx.globalAlpha = 0.18
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, Math.random() * 5 + 1, Math.random() * 5 + 1)
+  }
+  ctx.globalAlpha = 1
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.NoColorSpace
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(...repeat)
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+  return texture
+}
+
 const stoneTexture = makeTexture('#77675a', '#d0b28c', [2.5, 2.5])
 const floorTexture = makeTexture('#716b57', '#b6a982', [14, 14])
+const stoneNormal = makeNormalTexture([2.5, 2.5])
+const floorNormal = makeNormalTexture([14, 14])
 const mat = (color: number, roughness = 0.85, map?: THREE.Texture) => new THREE.MeshStandardMaterial({ color, roughness, map })
-const stone = mat(0xffffff, 0.92, stoneTexture)
-const stoneLight = mat(0xffffff, 0.82, stoneTexture)
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), mat(0xffffff, 1, floorTexture))
+const stone = mat(0xffffff, 0.96, stoneTexture)
+const stoneLight = mat(0xffffff, 0.88, stoneTexture)
+const floorMaterial = mat(0xffffff, 0.98, floorTexture)
+floorMaterial.bumpMap = floorTexture
+floorMaterial.bumpScale = 0.11
+floorMaterial.normalMap = floorNormal
+floorMaterial.normalScale.set(0.22, 0.22)
+stone.normalMap = stoneNormal
+stone.normalScale.set(0.28, 0.28)
+stoneLight.normalMap = stoneNormal
+stoneLight.normalScale.set(0.2, 0.2)
+const groundGeometry = new THREE.PlaneGeometry(100, 100, 32, 32)
+const groundVertices = groundGeometry.attributes.position
+for (let i = 0; i < groundVertices.count; i++) {
+  const x = groundVertices.getX(i)
+  const z = groundVertices.getY(i)
+  const edge = Math.max(Math.abs(x), Math.abs(z)) / 50
+  const ripples = Math.sin(x * 0.32) * Math.cos(z * 0.23) * 0.18
+  groundVertices.setZ(i, ripples + Math.max(0, edge - 0.62) * 2.5)
+}
+groundGeometry.computeVertexNormals()
+const ground = new THREE.Mesh(groundGeometry, floorMaterial)
 ground.rotation.x = -Math.PI / 2
 ground.receiveShadow = true
 scene.add(ground)
@@ -125,7 +167,39 @@ function box(size: [number, number, number], position: [number, number, number],
   return mesh
 }
 
-// Modular ruins: columns, lintels, broken blocks and an arched gate.
+// Natural cliffs frame the space; the authored entrance remains the focal point.
+function cliff(x: number, z: number, scale: [number, number, number], rotation = 0) {
+  const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), stone)
+  mesh.position.set(x, scale[1] * 0.42, z)
+  mesh.scale.set(...scale)
+  mesh.rotation.y = rotation
+  mesh.castShadow = mesh.receiveShadow = true
+  scene.add(mesh)
+}
+for (const c of [
+  [-18, -17, 4.5, 5.5, 3.4, 0.2], [18, -17, 4.2, 5.0, 3.2, -0.4],
+  [-22, -6, 3.6, 5.8, 4.1, 0.6], [22, -4, 4.4, 6.2, 3.5, -0.3],
+  [-21, 9, 4.6, 5.4, 3.8, 0.4], [21, 10, 4.2, 5.8, 3.6, -0.6],
+  [-15, 18, 4.6, 4.2, 3.0, 0.1], [15, 18, 5.0, 4.4, 3.1, -0.2],
+] as [number, number, number, number, number, number][]) cliff(c[0], c[1], [c[2], c[3], c[4]], c[5])
+
+function boulder(x: number, z: number, size: number, material = stoneLight) {
+  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 1), material)
+  mesh.position.set(x, size * 0.62, z)
+  mesh.scale.set(1.15, 0.72 + Math.random() * 0.3, 0.9)
+  mesh.rotation.set(Math.random(), Math.random(), Math.random())
+  mesh.castShadow = mesh.receiveShadow = true
+  scene.add(mesh)
+}
+for (const p of [[-9, -5, 1.3], [9, -5, 1.1], [-9, 8, 1.5], [9, 8, 1.2], [-4, -10, 1.0], [6, 5, 1.25]] as [number, number, number][]) boulder(...p)
+
+// A broken-stone ring creates a readable path to the altar.
+for (let i = 0; i < 12; i++) {
+  const angle = (i / 12) * Math.PI * 2
+  boulder(Math.cos(angle) * 5.6, 2 + Math.sin(angle) * 3.6, 0.42 + (i % 3) * 0.1)
+}
+
+// Modular ruins: a few architectural columns around the authored gate.
 function column(x: number, z: number, height = 5, broken = false) {
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, height, 10), stone)
   shaft.position.set(x, height / 2, z)
@@ -135,14 +209,8 @@ function column(x: number, z: number, height = 5, broken = false) {
   box([1.7, 0.25, 1.7], [x, 0.12, z], stoneLight)
   if (broken) box([1.6, 0.8, 1.2], [x + 0.55, height + 0.7, z + 0.25], stone)
 }
-for (let x = -18; x <= 18; x += 6) {
-  // Leave the center of the near boundary open so the camera never hides the hero.
-  if (x !== 0) { column(x, -16, 4 + Math.random() * 2, x % 12 === 0); column(x, 16, 4.5, x % 12 !== 0) }
-}
-for (let z = -10; z <= 10; z += 6) { column(-20, z, 4.5, z % 12 === 0); column(20, z, 5, z % 12 !== 0) }
-for (const p of [[-9, 1, -5], [9, 1, -5], [-9, 1, 8], [9, 1, 8], [-4, 0.7, -10], [6, 0.45, 5]] as [number, number, number][]) {
-  box([2.2, 1.4, 2.2], p, stoneLight)
-}
+column(-6, -14, 4.7, true)
+column(6, -14, 5.2, false)
 // Gate surround and a stone arch silhouette at the far end.
 box([2.2, 6, 1.6], [-3.8, 3, -15], stone)
 box([2.2, 6, 1.6], [3.8, 3, -15], stone)
@@ -177,19 +245,19 @@ function torch(x: number, z: number) {
 torch(-7, -13); torch(7, -13); torch(-15, 12); torch(15, 12)
 
 function primitiveTree(x: number, z: number, size: number) {
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * size, 0.35 * size, 2.8 * size, 7), mat(0x65452f, 0.95))
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * size, 0.42 * size, 3.2 * size, 9), mat(0x563b2c, 0.98))
   trunk.position.set(x, 1.4 * size, z)
   trunk.rotation.z = (Math.random() - 0.5) * 0.18
   trunk.castShadow = true
   scene.add(trunk)
-  const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.35 * size, 2.8 * size, 7), mat(0x3f7652, 0.92))
-  leaves.position.set(x, 3.2 * size, z)
-  leaves.castShadow = true
-  scene.add(leaves)
-  const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(1.05 * size, 2.2 * size, 7), mat(0x5d9563, 0.92))
-  leaves2.position.set(x + 0.2 * size, 4.6 * size, z)
-  leaves2.castShadow = true
-  scene.add(leaves2)
+  for (const [ox, oy, sx, sy, color] of [[0, 3.3, 1.5, 1.2, 0x315b42], [0.45, 4.35, 1.2, 1.0, 0x3d7650], [-0.35, 4.95, 0.82, 0.82, 0x568c5d]] as [number, number, number, number, number][]) {
+    const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 1), mat(color, 0.96))
+    canopy.position.set(x + ox * size, oy * size, z + (Math.random() - 0.5) * 0.3 * size)
+    canopy.scale.set(sx, sy, 0.9)
+    canopy.rotation.set(Math.random(), Math.random(), Math.random())
+    canopy.castShadow = true
+    scene.add(canopy)
+  }
 }
 for (const tree of [[-15, -6, 1.5], [15, -7, 1.8], [-16, 6, 1.4], [16, 7, 1.6], [-11, 13, 1.2], [11, 13, 1.3]] as [number, number, number][]) primitiveTree(...tree)
 
