@@ -1,6 +1,10 @@
-# 時空遺跡 prototype
+# 日本誕生編 prototype
 
-Three.js + Vite + TypeScriptで作る、映画風の冒険世界を歩く3D体験版です。
+Three.js + Vite + TypeScriptで作る、旧映画『のび太の日本誕生』をテーマにした3D冒険体験版です。
+
+![日本誕生編 prototype のゲーム画面](docs-gameplay-screenshot.jpg)
+
+▶ [GitHub Pagesでプレイする](https://jim-auto.github.io/doraemon-game/)
 
 ## 遊び方
 
