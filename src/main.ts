@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
+import { TextureLoader } from 'three'
 import './style.css'
 
 type Keys = Record<string, boolean>
@@ -102,7 +103,7 @@ const stoneTexture = makeTexture('#77675a', '#d0b28c', [2.5, 2.5])
 const floorTexture = makeTexture('#716b57', '#b6a982', [14, 14])
 const stoneNormal = makeNormalTexture([2.5, 2.5])
 const floorNormal = makeNormalTexture([14, 14])
-const mat = (color: number, roughness = 0.85, map?: THREE.Texture) => new THREE.MeshStandardMaterial({ color, roughness, map })
+const mat = (color: number, roughness = 0.85, map?: THREE.Texture) => new THREE.MeshStandardMaterial({ color, roughness, ...(map ? { map } : {}) })
 const stone = mat(0xffffff, 0.96, stoneTexture)
 const stoneLight = mat(0xffffff, 0.88, stoneTexture)
 const floorMaterial = mat(0xffffff, 0.98, floorTexture)
@@ -110,6 +111,28 @@ floorMaterial.bumpMap = floorTexture
 floorMaterial.bumpScale = 0.11
 floorMaterial.normalMap = floorNormal
 floorMaterial.normalScale.set(0.22, 0.22)
+
+// Poly Haven's CC0 dirt_aerial_02 maps replace the procedural ground once loaded.
+// This is the visual anchor: real albedo breakup, micro-normal detail and roughness
+// variation keep the scene from reading as a flat painted game board.
+const pbrLoader = new TextureLoader()
+const pbrTexture = (file: string, color = false) => {
+  const texture = pbrLoader.load(`/textures/dirt/${file}`)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(7.5, 7.5)
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+  if (color) texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+floorMaterial.map = pbrTexture('dirt_aerial_02_diff_2k.jpg', true)
+floorMaterial.normalMap = pbrTexture('dirt_aerial_02_nor_gl_2k.jpg')
+floorMaterial.roughnessMap = pbrTexture('dirt_aerial_02_rough_2k.jpg')
+floorMaterial.aoMap = pbrTexture('dirt_aerial_02_ao_2k.jpg')
+floorMaterial.bumpMap = pbrTexture('dirt_aerial_02_disp_2k.jpg')
+floorMaterial.bumpScale = 0.035
+floorMaterial.aoMapIntensity = 1.25
+floorMaterial.normalScale.set(0.48, 0.48)
+floorMaterial.needsUpdate = true
 stone.normalMap = stoneNormal
 stone.normalScale.set(0.28, 0.28)
 stoneLight.normalMap = stoneNormal
